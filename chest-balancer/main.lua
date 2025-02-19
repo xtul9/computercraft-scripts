@@ -9,6 +9,9 @@ for i = #chests, 1, -1 do
     end
 end
 
+local progressLabel
+local progressBar
+
 local function balanceChests()
     local wrappedChests = {}
     for i, c in ipairs(chests) do
@@ -17,7 +20,7 @@ local function balanceChests()
 
     local itemCounts = {}
 
-    -- 1. Collect amounts of items in each chest
+    -- 1. Collecting information about items in each chest
     for chestIndex, chest in ipairs(wrappedChests) do
         for slot, item in pairs(chest.list()) do
             local details = chest.getItemDetail(slot)
@@ -31,18 +34,38 @@ local function balanceChests()
         end
     end
 
-    -- 2. Balance only the items that need it
+    -- 2. Filling empty chests (when they didn't have the item)
+    for chestIndex = 1, #wrappedChests do
+        for key, data in pairs(itemCounts) do
+            if not data.chests[chestIndex] then
+                data.chests[chestIndex] = 0
+            end
+        end
+    end
+
+    -- 3. Moving items
     for key, data in pairs(itemCounts) do
         local numChests = #wrappedChests
         local perChest = math.floor(data.total / numChests)
         local remainder = data.total % numChests
         local maxStack = data.maxStack
 
-        -- Divide chests into overfilled and underfilled
+        -- Sorting chests by quantity
+        local sortedChests = {}
+        for chestIndex, count in pairs(data.chests) do
+            table.insert(sortedChests, { index = chestIndex, count = count })
+        end
+
+        -- Sorting from largest to smallest quantity
+        table.sort(sortedChests, function(a, b) return a.count > b.count end)
+
         local overfilled = {}
         local underfilled = {}
 
-        for chestIndex, count in pairs(data.chests) do
+        for _, chestData in ipairs(sortedChests) do
+            local chestIndex = chestData.index
+            local count = chestData.count
+
             if count > perChest then
                 table.insert(overfilled, { index = chestIndex, excess = count - perChest })
             elseif count < perChest then
@@ -50,46 +73,36 @@ local function balanceChests()
             end
         end
 
-        -- Move the items
+        -- Sorting underfilled in ascending order
+        table.sort(underfilled, function(a, b) return a.needed > b.needed end)
+
+        -- Transfer items
         for _, over in ipairs(overfilled) do
             local chestFrom = wrappedChests[over.index]
+
             for _, under in ipairs(underfilled) do
                 local chestTo = wrappedChests[under.index]
+
                 if over.excess > 0 and under.needed > 0 then
-                    local chestToContents = chestTo.list()
+                    local availableSpace = maxStack - (chestTo.list()[1] and chestTo.list()[1].count or 0)
+                    local moveAmount = math.min(over.excess, under.needed, availableSpace)
 
-                    -- Prioritize filling non-maxed out stacks
-                    for slot, item in pairs(chestToContents) do
-                        if item.name == key and item.count < maxStack then
-                            local availableSpace = maxStack - item.count
-                            local moveAmount = math.min(over.excess, under.needed, availableSpace)
-                            local moved = chestTo.pullItems(peripheral.getName(chestFrom), 1, moveAmount)
+                    -- Move from a random slot instead of always the first
+                    for slot, item in pairs(chestFrom.list()) do
+                        if item.name == key then
+                            local moved = chestTo.pullItems(peripheral.getName(chestFrom), slot, moveAmount)
 
-                            -- Update the amounts
                             over.excess = over.excess - moved
                             under.needed = under.needed - moved
 
-                            -- If the chest no longer has excess items, move to another chest
                             if over.excess <= 0 then break end
                         end
-                    end
-
-                    -- Move to another slot only if there is no more space in existing stacks
-                    if over.excess > 0 and under.needed > 0 then
-                        local moveAmount = math.min(over.excess, under.needed)
-                        local moved = chestTo.pullItems(peripheral.getName(chestFrom), 1, moveAmount)
-
-                        -- Update the amounts
-                        over.excess = over.excess - moved
-                        under.needed = under.needed - moved
                     end
                 end
             end
         end
     end
 end
-
-
 
 local frame = basalt.createFrame()
 
@@ -107,9 +120,6 @@ if monitorFrame == nil then
 end
 
 monitorFrame:setMonitor(monitor)
-
-local progressLabel
-local progressBar
 
 local function refreshStats()
     -- assume each slot is 64 items
@@ -131,29 +141,27 @@ local function refreshStats()
     progressBar:setProgress(pct)
 end
 
+local balancing = false
+
 local function mainLoop()
     local function runTasks()
-        balanceChests()
-        refreshStats()
+        if balancing then return end -- Skip if already balancing
+        balancing = true
+
+        parallel.waitForAny(
+            function()
+                balanceChests()
+                refreshStats()
+                balancing = false -- Unlock balancing 
+            end
+        )
     end
-
-    local timerDuration = 15
-    local timerId = os.startTimer(timerDuration)
-
-    runTasks()
 
     while true do
-      local event = table.pack(os.pullEvent())
-
-      if event[1] == "monitor_touch" then
-        refreshStats()
-      elseif event[1] == "timer" and event[2] == timerId then
-        print("Timer event")
         runTasks()
-        timerId = os.startTimer(timerDuration) -- restart the timer
-      end
     end
 end
+
 
 
 monitorFrame:addLabel()
@@ -161,7 +169,7 @@ monitorFrame:addLabel()
     :setText("Chest Balancer")
 monitorFrame:addLabel()
     :setPosition(1, 2)
-    :setText("Version 1.1.1")
+    :setText("Version 1.2.0")
 progressLabel = monitorFrame:addLabel()
     :setPosition(1, 6)
     :setText("Loading...")
