@@ -98,17 +98,31 @@ if frame == nil then
     return
 end
 
+local monitor = peripheral.wrap("left") -- Assuming a monitor is on the left side
+local monitorFrame = basalt.addMonitor()
+
+if monitorFrame == nil then 
+    print("Monitor frame is nil!")
+    return
+end
+
+monitorFrame:setMonitor(monitor)
+
 local progressLabel
 local progressBar
 
 local function refreshStats()
+    -- assume each slot is 64 items
     local totalAvailableSlots = 0
     local usedSlots = 0
 
     for _, p in ipairs(chests) do
         local chest = peripheral.wrap(p)
-        totalAvailableSlots = totalAvailableSlots + chest.size()
-        usedSlots = usedSlots + #chest.list()
+        totalAvailableSlots = totalAvailableSlots + (chest.size() * 64)
+        for slot, item in pairs(chest.list()) do
+            local details = chest.getItemDetail(slot)
+            usedSlots = usedSlots + details.count
+        end
     end
 
     local pct = (usedSlots / totalAvailableSlots) * 100
@@ -118,39 +132,44 @@ local function refreshStats()
 end
 
 local function mainLoop()
-    balanceChests()
-    refreshStats()
-    basalt.update()
-
-    local function delayedTask()
+    local function runTasks()
         balanceChests()
         refreshStats()
-        basalt.update()
     end
 
-    local myTimer = frame:addTimer()
+    local timerDuration = 15
+    local timerId = os.startTimer(timerDuration)
 
-    myTimer:onCall(delayedTask)
-    myTimer:setTime(10)
-    myTimer:start()
+    runTasks()
+
+    while true do
+      local event = table.pack(os.pullEvent())
+
+      if event[1] == "monitor_touch" then
+        refreshStats()
+      elseif event[1] == "timer" and event[2] == timerId then
+        print("Timer event")
+        runTasks()
+        timerId = os.startTimer(timerDuration) -- restart the timer
+      end
+    end
 end
 
-frame:addLabel()
-    :setPosition(5, 1)
+
+monitorFrame:addLabel()
+    :setPosition(1, 1)
     :setText("Chest Balancer")
-frame:addLabel()
-    :setPosition(5, 2)
-    :setText("Version 1.0")
-progressLabel = frame:addLabel()
-    :setPosition(5, 4)
+monitorFrame:addLabel()
+    :setPosition(1, 2)
+    :setText("Version 1.1")
+progressLabel = monitorFrame:addLabel()
+    :setPosition(1, 6)
     :setText("Loading...")
-progressBar = frame:addProgressbar()
-    :setPosition(5, 5)
-    :setSize(20, 1)
+progressBar = monitorFrame:addProgressbar()
+    :setPosition(1, 7)
+    :setSize(20, 2)
     :setDirection("right")
     :setProgress(0)
     :setProgressBar(colors.blue)
 
-mainLoop()
-
-basalt.autoUpdate()
+parallel.waitForAny(mainLoop, basalt.autoUpdate)
