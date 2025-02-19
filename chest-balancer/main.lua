@@ -131,7 +131,9 @@ local function refreshStats()
         totalAvailableSlots = totalAvailableSlots + (chest.size() * 64)
         for slot, item in pairs(chest.list()) do
             local details = chest.getItemDetail(slot)
-            usedSlots = usedSlots + details.count
+            if details then
+                usedSlots = usedSlots + details.count
+            end
         end
     end
 
@@ -169,7 +171,7 @@ monitorFrame:addLabel()
     :setText("Chest Balancer")
 monitorFrame:addLabel()
     :setPosition(1, 2)
-    :setText("Version 1.2.0")
+    :setText("Version 1.2.1")
 progressLabel = monitorFrame:addLabel()
     :setPosition(1, 6)
     :setText("Loading...")
