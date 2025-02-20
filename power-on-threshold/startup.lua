@@ -6,10 +6,12 @@ if container == nil then
 end
 
 local function isContainerFull()
-    for _, item in pairs(container.list()) do
-        local count = item.count
+    for slot, _ in pairs(container.list()) do
+        local details = container.getItemDetail(slot)
+        local count = details.count
+        local maxCount = details.maxCount
 
-        if count >= 64 then
+        if count >= maxCount then
             return true
         end
     end
