@@ -4,7 +4,7 @@ local chests = peripheral.getNames()
 
 -- Filter out non-chest peripherals
 for i = #chests, 1, -1 do
-    if peripheral.getType(chests[i]) ~= "minecraft:chest" then
+    if peripheral.getType(chests[i]) ~= "minecraft:chest" or peripheral.getType(chests[i]) ~= "minecraft:barrel" then
         table.remove(chests, i)
     end
 end
