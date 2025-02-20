@@ -4,7 +4,9 @@ local chests = peripheral.getNames()
 
 -- Filter out non-chest peripherals
 for i = #chests, 1, -1 do
-    if peripheral.getType(chests[i]) ~= "minecraft:chest" or peripheral.getType(chests[i]) ~= "minecraft:barrel" then
+    local type = peripheral.getType(chests[i])
+
+    if type ~= "minecraft:chest" and type ~= "minecraft:barrel" then
         table.remove(chests, i)
     end
 end
@@ -72,19 +74,13 @@ local function mainLoop()
     while true do
         moveSingleItem()
         refreshStats()
+        sleep(0.05)
     end
 end
 
-local frame = basalt.createFrame()
-if frame == nil then 
-    print("Main frame is nil!")
-    return
-end
-
-local monitor = peripheral.wrap("left")
+local monitor = peripheral.find("monitor")
 local frame
 if monitor == nil then 
-    print("Monitor frame is nil!")
     frame = basalt.createFrame()
 else
     frame = basalt.addMonitor()
@@ -96,7 +92,7 @@ frame:addLabel()
     :setText("Chest Balancer")
 frame:addLabel()
     :setPosition(1, 2)
-    :setText("Version 1.3.0")
+    :setText("Version 1.3.1")
 progressLabel = frame:addLabel()
     :setPosition(1, 6)
     :setText("Loading...")
