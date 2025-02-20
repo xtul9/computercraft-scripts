@@ -82,23 +82,25 @@ if frame == nil then
 end
 
 local monitor = peripheral.wrap("left")
-local monitorFrame = basalt.addMonitor()
-if monitorFrame == nil then 
+local frame
+if monitor == nil then 
     print("Monitor frame is nil!")
-    return
+    frame = basalt.createFrame()
+else
+    frame = basalt.addMonitor()
+    frame:setMonitor(monitor)
 end
-monitorFrame:setMonitor(monitor)
 
-monitorFrame:addLabel()
+frame:addLabel()
     :setPosition(1, 1)
     :setText("Chest Balancer")
-monitorFrame:addLabel()
+frame:addLabel()
     :setPosition(1, 2)
     :setText("Version 1.3.0")
-progressLabel = monitorFrame:addLabel()
+progressLabel = frame:addLabel()
     :setPosition(1, 6)
     :setText("Loading...")
-progressBar = monitorFrame:addProgressbar()
+progressBar = frame:addProgressbar()
     :setPosition(1, 7)
     :setSize(18, 2)
     :setDirection("right")
